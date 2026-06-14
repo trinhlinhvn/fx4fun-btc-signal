@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC Charts — Bollinger Bands & MACD</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0e17;
+            color: #e1e5eb;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 1.4rem;
+            background: linear-gradient(90deg, #f7931a, #ffcd00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header a {
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .tf-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tf-tab {
+            padding: 8px 20px;
+            border: 1px solid #2d3748;
+            border-radius: 8px;
+            background: #1a1f2e;
+            color: #8892a4;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .tf-tab.active {
+            background: #f7931a;
+            color: #000;
+            border-color: #f7931a;
+        }
+        .chart-card {
+            background: #1a1f2e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #2d3748;
+        }
+        .chart-card h2 {
+            font-size: 1rem;
+            color: #8892a4;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .chart-container {
+            position: relative;
+            height: 350px;
+        }
+        .chart-container-sm {
+            position: relative;
+            height: 200px;
+        }
+        .loading-charts {
+            text-align: center;
+            padding: 50px;
+            color: #8892a4;
+        }
+        .spinner {
+            width: 30px; height: 30px;
+            border: 3px solid #2d3748;
+            border-top: 3px solid #f7931a;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .info-row {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #8892a4;
+        }
+        .info-row span { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .dot-price { background: #f7931a; }
+        .dot-bb-upper { background: #ef4444; border: 1px dashed #ef4444; }
+        .dot-bb-lower { background: #10b981; border: 1px dashed #10b981; }
+        .dot-bb-mid { background: #8892a4; }
+        .dot-macd { background: #60a5fa; }
+        .dot-signal { background: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 BTC Technical Charts</h1>
+        <a href="/">← Back to Dashboard</a>
+    </div>
+
+    <div class="tf-tabs">
+        <div class="tf-tab active" data-tf="h4" onclick="switchTimeframe('h4')">H4 (30 days)</div>
+        <div class="tf-tab" data-tf="h1" onclick="switchTimeframe('h1')">H1 (1 day)</div>
+    </div>
+
+    <!-- Bollinger Bands Chart -->
+    <div class="chart-card">
+        <h2>📈 Price + Bollinger Bands (<span id="bb-tf">H4</span>)</h2>
+        <div class="chart-container">
+            <canvas id="bbChart"></canvas>
+        </div>
+        <div class="info-row">
+            <span><div class="dot dot-price"></div> Price (Close)</span>
+            <span><div class="dot dot-bb-upper"></div> BB Upper (2σ)</span>
+            <span><div class="dot dot-bb-mid"></div> BB Middle (SMA20)</span>
+            <span><div class="dot dot-bb-lower"></div> BB Lower (2σ)</span>
+        </div>
+    </div>
+
+    <!-- MACD Chart -->
+    <div class="chart-card">
+        <h2>📉 MACD (<span id="macd-tf">H4</span>)</h2>
+        <div class="chart-container-sm">
+            <canvas id="macdChart"></canvas>
+        </div>
+        <div class="info-row">
+            <span><div class="dot dot-macd"></div> MACD Line</span>
+            <span><div class="dot dot-signal"></div> Signal Line</span>
+            <span><div class="dot dot-price"></div> Histogram</span>
+        </div>
+    </div>
+
+    <div class="loading-charts" id="loading">
+        <div class="spinner"></div>
+        <p>Loading chart data...</p>
+    </div>
+
+    <script>
+        let bbChart = null;
+        let macdChart = null;
+        let currentTF = 'h4';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCharts('h4');
+        });
+
+        function switchTimeframe(tf) {
+            currentTF = tf;
+            document.querySelectorAll('.tf-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-tf="${tf}"]`).classList.add('active');
+            document.getElementById('bb-tf').textContent = tf.toUpperCase();
+            document.getElementById('macd-tf').textContent = tf.toUpperCase();
+            loadCharts(tf);
+        }
+
+        async function loadCharts(tf) {
+            document.getElementById('loading').style.display = 'block';
+
+            try {
+                const res = await fetch(`/api/chart/${tf}`);
+                const json = await res.json();
+
+                if (json.error) {
+                    document.getElementById('loading').innerHTML = `<p style="color:#ef4444;">Error: ${json.error}</p>`;
+                    return;
+                }
+
+                document.getElementById('loading').style.display = 'none';
+                renderBBChart(json.data);
+                renderMACDChart(json.data);
+            } catch (e) {
+                document.getElementById('loading').innerHTML = `<p style="color:#ef4444;">Failed to load: ${e.message}</p>`;
+            }
+        }
+
+        function renderBBChart(data) {
+            const labels = data.map(d => d.time);
+            const closes = data.map(d => d.close);
+            const bbUpper = data.map(d => d.bb_upper || null);
+            const bbMiddle = data.map(d => d.bb_middle || null);
+            const bbLower = data.map(d => d.bb_lower || null);
+
+            if (bbChart) bbChart.destroy();
+
+            const ctx = document.getElementById('bbChart').getContext('2d');
+            bbChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Price',
+                            data: closes,
+                            borderColor: '#f7931a',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.1,
+                            order: 1,
+                        },
+                        {
+                            label: 'BB Upper',
+                            data: bbUpper,
+                            borderColor: 'rgba(239, 68, 68, 0.7)',
+                            borderWidth: 1,
+                            borderDash: [5, 3],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1,
+                            order: 2,
+                        },
+                        {
+                            label: 'BB Middle',
+                            data: bbMiddle,
+                            borderColor: 'rgba(136, 146, 164, 0.5)',
+                            borderWidth: 1,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1,
+                            order: 3,
+                        },
+                        {
+                            label: 'BB Lower',
+                            data: bbLower,
+                            borderColor: 'rgba(16, 185, 129, 0.7)',
+                            borderWidth: 1,
+                            borderDash: [5, 3],
+                            pointRadius: 0,
+                            fill: '-2',
+                            backgroundColor: 'rgba(136, 146, 164, 0.05)',
+                            tension: 0.1,
+                            order: 4,
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: $${ctx.raw?.toLocaleString() || 'N/A'}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#1e2533' },
+                            ticks: {
+                                color: '#8892a4',
+                                maxTicksLimit: 10,
+                                callback: function(val, i) {
+                                    const d = new Date(this.getLabelForValue(val));
+                                    return d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                                }
+                            }
+                        },
+                        y: {
+                            grid: { color: '#1e2533' },
+                            ticks: {
+                                color: '#8892a4',
+                                callback: (v) => '$' + v.toLocaleString()
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderMACDChart(data) {
+            const labels = data.map(d => d.time);
+            const macdLine = data.map(d => d.macd || null);
+            const signalLine = data.map(d => d.macd_signal || null);
+            const histogram = data.map(d => d.macd_histogram || null);
+
+            if (macdChart) macdChart.destroy();
+
+            const ctx = document.getElementById('macdChart').getContext('2d');
+            macdChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Histogram',
+                            data: histogram,
+                            type: 'bar',
+                            backgroundColor: histogram.map(v => v > 0 ? 'rgba(16,185,129,0.6)' : 'rgba(239,68,68,0.6)'),
+                            borderWidth: 0,
+                            order: 2,
+                        },
+                        {
+                            label: 'MACD',
+                            data: macdLine,
+                            type: 'line',
+                            borderColor: '#60a5fa',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.2,
+                            order: 1,
+                        },
+                        {
+                            label: 'Signal',
+                            data: signalLine,
+                            type: 'line',
+                            borderColor: '#f59e0b',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.2,
+                            order: 1,
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            grid: { color: '#1e2533' },
+                            ticks: {
+                                color: '#8892a4',
+                                maxTicksLimit: 10,
+                                callback: function(val, i) {
+                                    const d = new Date(this.getLabelForValue(val));
+                                    return d.toLocaleDateString([], {month:'short', day:'numeric'});
+                                }
+                            }
+                        },
+                        y: {
+                            grid: { color: '#1e2533' },
+                            ticks: { color: '#8892a4' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Auto refresh every 10 minutes
+        setInterval(() => loadCharts(currentTF), 600000);
+    </script>
+</body>
+</html>
