@@ -29,145 +29,94 @@ class TelegramSignalBot:
         self.last_signal = None
 
     def format_signal_message(self, result: dict) -> str:
-        """Format signal result thành message Telegram đẹp."""
+        """
+        Telegram message ngắn gọn, focus:
+        - Direction (LONG/SHORT)
+        - Entry Zone (vùng giá)
+        - SL, TP1/TP2/TP3
+        - 3 lý do ngắn gọn
+        """
         if "error" in result:
             return f"❌ Error: {result['error']}"
 
         signal = result["signal"]
         score = result["final_score"]
-        confidence = result["confidence"]
         price_info = result.get("current_price", {})
         price = price_info.get("price", 0)
         change_24h = price_info.get("change_24h", 0)
-
-        # Signal emoji
-        if "STRONG BUY" in signal:
-            signal_emoji = "🟢🟢🚀"
-        elif "BUY" in signal:
-            signal_emoji = "🟢📈"
-        elif "STRONG SELL" in signal:
-            signal_emoji = "🔴🔴💥"
-        elif "SELL" in signal:
-            signal_emoji = "🔴📉"
-        else:
-            signal_emoji = "🟡⏸️"
-
-        # Components
-        components = result["components"]
-        ta = components["technical_analysis"]
-        news = components["news_sentiment"]
-        ml = components["ml_prediction"]
-
-        # Expert analysis
-        expert = result.get("expert_analysis", {})
         risk_reward = result.get("risk_reward", {})
-        narratives = expert.get("narratives", [])
-        risk = expert.get("risk_level", {})
-        phase = expert.get("trend_phase", {})
-        bias = expert.get("overall_bias", {})
+        trade_reasons = result.get("trade_reasons", [])
+        fund_mgmt = result.get("fund_management", {})
+        position_sizing = fund_mgmt.get("position_sizing", {})
 
-        # Build message
-        msg = f"""
-{signal_emoji} *BTC SIGNAL: {signal}*
-{'━' * 30}
+        is_actionable = "BUY" in signal or "SELL" in signal
 
-💰 *Price:* ${price:,.2f} ({change_24h:+.2f}% 24h)
-📊 *Score:* {score:+.4f} (-1.0 to +1.0)
-🎯 *Confidence:* {confidence}
+        if "STRONG BUY" in signal:
+            header = "🟢🟢 STRONG LONG 🚀"
+        elif "BUY" in signal:
+            header = "🟢 LONG"
+        elif "STRONG SELL" in signal:
+            header = "🔴🔴 STRONG SHORT 💥"
+        elif "SELL" in signal:
+            header = "🔴 SHORT"
+        else:
+            header = "🟡 HOLD — No Trade"
 
-{'─' * 25}
-*📈 PHÂN TÍCH KỸ THUẬT*
-• RSI: {ta['details'].get('rsi', {}).get('signal', 'N/A')} ({ta['details'].get('rsi', {}).get('value', 0):.1f})
-• MACD: {ta['details'].get('macd', {}).get('signal', 'N/A')}
-• EMA Cross: {ta['details'].get('ema_cross', {}).get('signal', 'N/A')}
-• Bollinger: {ta['details'].get('bollinger', {}).get('signal', 'N/A')}
-• TA Score: {ta['score']:+.4f}
+        # === SHORT & FOCUSED MESSAGE ===
+        if is_actionable and risk_reward and "LONG" in str(risk_reward.get("position_type","")) or "SHORT" in str(risk_reward.get("position_type","")):
+            pos = risk_reward.get("position_type", "")
+            entry = risk_reward.get("entry", 0)
+            sl = risk_reward.get("stop_loss", 0)
+            tp1 = risk_reward.get("take_profit_1", 0)
+            tp2 = risk_reward.get("take_profit_2", 0)
+            tp3 = risk_reward.get("take_profit_3", 0)
+            rr = risk_reward.get("risk_reward_ratio", 0)
 
-{'─' * 25}
-*📰 TIN TỨC & SENTIMENT*
-• Score: {news['score']:+.4f}
-• Articles: {news['articles_analyzed']} ({news['source']})
+            entry_zone = risk_reward.get("entry_zone", {})
+            entry_low = entry_zone.get("low", entry * 0.998)
+            entry_high = entry_zone.get("high", entry * 1.002)
 
-{'─' * 25}
-*🤖 ML/AI PREDICTION*
-• Prediction: {ml['prediction']}
-• Confidence: {ml['ml_confidence']:.0%}
-• Score: {ml['score']:+.4f}
+            msg = f"""
+{header}
+━━━━━━━━━━━━━━━━━━━
+
+BTC/USDT | ${price:,.0f} ({change_24h:+.1f}%)
+
+Entry Zone:
+${entry_low:,.0f} - ${entry_high:,.0f}
+
+SL: ${sl:,.0f} ({risk_reward.get('risk_percent',0):.1f}%)
+TP1: ${tp1:,.0f}
+TP2: ${tp2:,.0f}
+TP3: ${tp3:,.0f}
+
+R:R {rr}:1 | Score {score:+.3f}
+"""
+            # 3 Reasons
+            if trade_reasons:
+                msg += "\nLy do:\n"
+                for i, reason in enumerate(trade_reasons[:3], 1):
+                    short = reason[:70] + "..." if len(reason) > 70 else reason
+                    # Remove emojis for clean text
+                    msg += f"{i}. {short}\n"
+
+            msg += f"\n{datetime.now().strftime('%H:%M %d/%m')} | H4/M15 | Refresh 5 min"
+            msg += "\nDYOR. Not financial advice."
+
+        else:
+            # HOLD message (very short)
+            msg = f"""
+*{header}*
+
+BTC ${price:,.0f} ({change_24h:+.1f}%)
+Score: {score:+.3f}
+
+Không có setup rõ ràng.
+Chờ confluence mạnh hơn.
+
+⏰ {datetime.now().strftime('%H:%M %d/%m')}
 """
 
-        # Expert section
-        if phase:
-            msg += f"""
-{'─' * 25}
-*🧠 EXPERT ANALYSIS*
-• Phase: {phase.get('phase', 'N/A')}
-• Bias: {bias.get('direction', 'N/A')} ({bias.get('strength', 0)}%)
-• Risk: {risk.get('level', 'N/A')}
-"""
-
-        # Risk/Reward
-        if risk_reward and risk_reward.get("position_type") != "NO TRADE":
-            futures = risk_reward.get("futures", {})
-            msg += f"""
-{'─' * 25}
-*💎 TRADE SETUP ({risk_reward['position_type']})*
-• Entry: ${risk_reward['entry']:,.2f}
-• Stop Loss: ${risk_reward['stop_loss']:,.2f}
-• TP1: ${risk_reward['take_profit_1']:,.2f}
-• TP2: ${risk_reward['take_profit_2']:,.2f}
-• TP3: ${risk_reward['take_profit_3']:,.2f}
-• R:R Ratio: {risk_reward['risk_reward_ratio']}:1
-• Risk: {risk_reward['risk_percent']:.2f}%
-"""
-            if futures:
-                msg += f"""
-{'─' * 25}
-*⚡ FUTURES x{futures.get('leverage', 10)}*
-• Margin: ${futures.get('margin_usd', 0):,.0f}
-• Position Size: ${futures.get('position_size_usd', 0):,.0f}
-• Qty: {futures.get('quantity_btc', 0):.6f} BTC
-• Liquidation: ${futures.get('liquidation_price', 0):,.2f}
-• SL Loss: ${futures.get('sl_pnl_usd', 0):,.2f} (ROE {futures.get('sl_roe_pct', 0):+.1f}%)
-"""
-                for tp in futures.get("take_profits", []):
-                    msg += f"• {tp['target']}: +${tp['pnl_usd']:,.2f} (ROE {tp['roe_pct']:+.1f}%)\n"
-
-        # Multi-timeframe
-        mtf = result.get("multi_timeframe", {})
-        if mtf and mtf.get("recommendation"):
-            msg += f"""
-{'─' * 25}
-*📐 MULTI-TIMEFRAME*
-• H4: {mtf.get('h4', {}).get('trend', 'N/A')} ({mtf.get('h4', {}).get('phase', '')})
-• H1: {mtf.get('h1', {}).get('trend', 'N/A')} ({mtf.get('h1', {}).get('phase', '')})
-• {mtf.get('recommendation', '')}
-"""
-
-        if not risk_reward or risk_reward.get("position_type") == "NO TRADE":
-            if risk_reward:
-                msg += f"""
-{'─' * 25}
-*💎 TRADE SETUP*
-• {risk_reward.get('reason', 'No clear setup')}
-• {risk_reward.get('suggestion', '')}
-"""
-
-        # Key narratives (top 3)
-        if narratives:
-            msg += f"\n{'─' * 25}\n*📝 KEY INSIGHTS*\n"
-            for n in narratives[:4]:
-                msg += f"• {n}\n"
-
-        # Risk factors
-        if risk.get("factors"):
-            msg += f"\n⚠️ *Risk Factors:* {', '.join(risk['factors'][:3])}"
-
-        msg += f"""
-
-{'━' * 30}
-⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-⚠️ _Not financial advice. DYOR._
-"""
         return msg
 
     async def send_signal(self, result: dict = None):
@@ -186,15 +135,14 @@ class TelegramSignalBot:
             await self.bot.send_message(
                 chat_id=self.chat_id,
                 text=message,
-                parse_mode="Markdown",
+                parse_mode=None,
             )
             logger.info("Signal sent to Telegram successfully")
             return True
         except Exception as e:
             logger.error(f"Failed to send Telegram message: {e}")
-            # Try without markdown if parsing fails
             try:
-                plain_message = message.replace("*", "").replace("_", "")
+                plain_message = message.replace("*", "").replace("_", "").replace("`", "")
                 await self.bot.send_message(
                     chat_id=self.chat_id,
                     text=plain_message,

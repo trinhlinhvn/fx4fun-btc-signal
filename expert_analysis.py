@@ -292,69 +292,84 @@ class ExpertAnalyzer:
 
     def calculate_risk_reward(self, df: pd.DataFrame, signal_direction: str) -> dict:
         """
-        Tính toán Risk/Reward ratio và đề xuất vị trí Entry/SL/TP
-        như một trader chuyên nghiệp.
+        Tính Entry Zone + SL + TP dựa trên backtest-optimized params.
+        SL: 1.5% | TP1: 3.0% | TP2: 4.5% | TP3: 7.5%
         """
+        from config import TRADE_CONFIG
+        
         sr_levels = self.find_support_resistance(df)
         current_price = sr_levels["current_price"]
         nearest_support = sr_levels["nearest_support"]
         nearest_resistance = sr_levels["nearest_resistance"]
-
-        # ATR-based stop loss
         atr = self._calculate_atr(df, period=14)
 
-        if "BUY" in signal_direction or signal_direction == "UP":
-            # Long setup
-            entry = current_price
-            stop_loss = max(
-                current_price - 2 * atr,
-                nearest_support * 0.995 if nearest_support else current_price * 0.97
-            )
-            take_profit_1 = nearest_resistance if nearest_resistance else current_price * 1.03
-            take_profit_2 = current_price + 3 * (current_price - stop_loss)  # 3:1 RR
-            take_profit_3 = current_price + 5 * (current_price - stop_loss)  # 5:1 RR
+        sl_pct = TRADE_CONFIG["sl_pct"] / 100
+        tp1_pct = TRADE_CONFIG["tp1_pct"] / 100
+        tp2_pct = TRADE_CONFIG["tp2_pct"] / 100
+        tp3_pct = TRADE_CONFIG["tp3_pct"] / 100
 
+        if "BUY" in signal_direction or signal_direction == "UP":
+            entry = current_price
+            stop_loss = current_price * (1 - sl_pct)
+            take_profit_1 = current_price * (1 + tp1_pct)
+            take_profit_2 = current_price * (1 + tp2_pct)
+            take_profit_3 = current_price * (1 + tp3_pct)
             risk = current_price - stop_loss
             reward = take_profit_1 - current_price
             rr_ratio = reward / risk if risk > 0 else 0
-
             position_type = "LONG"
 
         elif "SELL" in signal_direction or signal_direction == "DOWN":
-            # Short setup
             entry = current_price
-            stop_loss = min(
-                current_price + 2 * atr,
-                nearest_resistance * 1.005 if nearest_resistance else current_price * 1.03
-            )
-            take_profit_1 = nearest_support if nearest_support else current_price * 0.97
-            take_profit_2 = current_price - 3 * (stop_loss - current_price)
-            take_profit_3 = current_price - 5 * (stop_loss - current_price)
-
+            stop_loss = current_price * (1 + sl_pct)
+            take_profit_1 = current_price * (1 - tp1_pct)
+            take_profit_2 = current_price * (1 - tp2_pct)
+            take_profit_3 = current_price * (1 - tp3_pct)
             risk = stop_loss - current_price
             reward = current_price - take_profit_1
             rr_ratio = reward / risk if risk > 0 else 0
-
             position_type = "SHORT"
+
         else:
-            return {
-                "position_type": "NO TRADE",
-                "reason": "Signal is HOLD/NEUTRAL — không có setup rõ ràng",
-                "suggestion": "Chờ breakout hoặc tín hiệu mạnh hơn",
-            }
+            # Gợi ý dựa trên S/R
+            dist_to_support = (current_price - nearest_support) / current_price if nearest_support else 1
+            dist_to_resistance = (nearest_resistance - current_price) / current_price if nearest_resistance else 1
 
-        risk_pct = abs(risk) / current_price * 100
+            if dist_to_support < dist_to_resistance:
+                entry = current_price
+                stop_loss = current_price * (1 - sl_pct)
+                take_profit_1 = current_price * (1 + tp1_pct)
+                take_profit_2 = current_price * (1 + tp2_pct)
+                take_profit_3 = current_price * (1 + tp3_pct)
+                risk = current_price - stop_loss
+                reward = take_profit_1 - current_price
+                rr_ratio = reward / risk if risk > 0 else 0
+                position_type = "LONG (gợi ý)"
+            else:
+                entry = current_price
+                stop_loss = current_price * (1 + sl_pct)
+                take_profit_1 = current_price * (1 - tp1_pct)
+                take_profit_2 = current_price * (1 - tp2_pct)
+                take_profit_3 = current_price * (1 - tp3_pct)
+                risk = stop_loss - current_price
+                reward = current_price - take_profit_1
+                rr_ratio = reward / risk if risk > 0 else 0
+                position_type = "SHORT (gợi ý)"
 
-        # Futures x10 calculation
-        futures = self._calculate_futures(
-            position_type, entry, stop_loss,
-            [take_profit_1, take_profit_2, take_profit_3],
-            leverage=10
-        )
+        risk_pct = sl_pct * 100
+
+        # Entry Zone tight (±0.15%)
+        entry_zone_pct = min(0.0015, atr / current_price * 0.3)
+        entry_zone = {
+            "low": round(current_price * (1 - entry_zone_pct), 2),
+            "high": round(current_price * (1 + entry_zone_pct), 2),
+            "mid": round(current_price, 2),
+        }
 
         return {
             "position_type": position_type,
             "entry": round(entry, 2),
+            "entry_zone": entry_zone,
             "stop_loss": round(stop_loss, 2),
             "take_profit_1": round(take_profit_1, 2),
             "take_profit_2": round(take_profit_2, 2),
@@ -362,8 +377,6 @@ class ExpertAnalyzer:
             "risk_reward_ratio": round(rr_ratio, 2),
             "risk_percent": round(risk_pct, 2),
             "atr": round(atr, 2),
-            "position_size_suggestion": self._suggest_position_size(risk_pct),
-            "futures": futures,
         }
 
     def _calculate_futures(self, position_type: str, entry: float, stop_loss: float,

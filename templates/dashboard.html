@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BTC Signal | Fx4Fun</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0e17;color:#e1e5eb;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+        body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0e17;color:#e1e5eb;height:100vh;overflow:hidden;display:flex;flex-direction:column;font-size:130%}
 
         /* === TOP: Price + Signal (big) === */
         .top-section{background:linear-gradient(135deg,#1a1f2e,#0d1117);padding:20px 28px;border-bottom:1px solid #2d3748;display:flex;justify-content:space-between;align-items:center}
@@ -34,15 +36,12 @@
         .rbtn:hover{border-color:#f7931a;color:#f7931a}
         .meta-time{font-size:0.68rem;color:#6b7280}
 
-        .bottom-section{flex:1;display:grid;grid-template-columns:30fr 40fr 30fr;min-height:0;overflow:hidden}
+        .bottom-section{flex:1;display:grid;grid-template-columns:25fr 45fr 30fr;min-height:0;overflow:hidden}
 
         /* LEFT COL: Chart + TA + Trade */
         .col-left{background:#12161f;border-right:1px solid #2d3748;display:flex;flex-direction:column;overflow:hidden}
         .chart-area{height:170px;padding:6px;border-bottom:1px solid #2d3748;position:relative;flex-shrink:0}
         .chart-area canvas{width:100%!important;height:100%!important}
-        .chart-tabs{display:flex;gap:3px;padding:4px 8px;border-bottom:1px solid #2d3748;flex-shrink:0}
-        .ctab{padding:3px 8px;border-radius:3px;font-size:0.65rem;font-weight:600;cursor:pointer;background:#0d1117;color:#8892a4;border:1px solid #2d3748}
-        .ctab.active{background:#f7931a;color:#000;border-color:#f7931a}
         .left-scroll{flex:1;overflow-y:auto;padding:8px 10px}
         .stitle{font-size:0.63rem;text-transform:uppercase;letter-spacing:.8px;color:#8892a4;margin:10px 0 4px;font-weight:600}
         .stitle:first-child{margin-top:0}
@@ -98,55 +97,73 @@
                 <div class="score-line">Score: <span id="t-sc">0</span><span class="conf-tag cf-l" id="t-conf">--</span></div>
             </div>
             <button class="rbtn" onclick="refreshSignal()">🔄 Refresh</button>
+            <a href="/about" class="rbtn" style="text-decoration:none">📐 Kiến trúc</a>
             <span class="meta-time" id="t-time">--</span>
         </div>
     </div>
 
     <!-- BOTTOM: 3 columns -->
     <div class="bottom-section">
-        <!-- LEFT 30% -->
+        <!-- LEFT 25% — TA + Trade Setup -->
         <div class="col-left">
-            <div class="chart-tabs">
-                <div class="ctab active" onclick="lc('h4','bb',this)">BB H4</div>
-                <div class="ctab" onclick="lc('h1','bb',this)">BB H1</div>
-                <div class="ctab" onclick="lc('h4','macd',this)">MACD H4</div>
-                <div class="ctab" onclick="lc('h1','macd',this)">MACD H1</div>
-            </div>
-            <div class="chart-area"><canvas id="miniChart"></canvas></div>
             <div class="left-scroll">
                 <div class="stitle">📈 TA Indicators</div>
                 <div id="ta-box"></div>
                 <div class="stitle">💎 Trade Setup (x10)</div>
                 <div class="tbox" id="trade-box"><div class="tr-r"><span class="tr-l">Waiting...</span></div></div>
+                <div class="stitle">🎯 Top 3 Lý Do</div>
+                <div id="reasons-box"><div class="ins">Loading...</div></div>
                 <div class="stitle">🌍 Market</div>
                 <div id="mkt-box"></div>
             </div>
         </div>
 
-        <!-- CENTER 40% -->
-        <div class="col-center">
-            <div class="news-header">
-                <span>📰 Top 10 tin tức tác động mạnh nhất</span>
-                <span id="news-meta">--</span>
+        <!-- CENTER 45% — 2 Charts (H4 + H1) with BB + SMC -->
+        <div class="col-center" style="display:flex;flex-direction:column;overflow:hidden">
+            <!-- H4 Chart -->
+            <div style="flex:1;min-height:0;border-bottom:1px solid #2d3748;padding:6px;position:relative">
+                <div style="font-size:0.7rem;color:#8892a4;font-weight:600;margin-bottom:4px">📊 H4 — Trend Direction + BB + SMC</div>
+                <div id="chartH4" style="height:calc(100% - 20px)"></div>
             </div>
-            <div id="news-feed"><p style="color:#8892a4;text-align:center;padding:30px">Loading news...</p></div>
+            <!-- M15 Chart -->
+            <div style="flex:1;min-height:0;padding:6px;position:relative">
+                <div style="font-size:0.7rem;color:#8892a4;font-weight:600;margin-bottom:4px">📊 M15 — Entry Timing + BB + SMC</div>
+                <div id="chartH1" style="height:calc(100% - 20px)"></div>
+            </div>
         </div>
 
-        <!-- RIGHT 30% -->
+        <!-- RIGHT 30% — News + Expert -->
         <div class="col-right">
             <div class="stitle">🧠 Expert Analysis</div>
             <div id="expert-box"><div class="ins">Loading...</div></div>
             <div class="stitle" style="margin-top:10px">💎 SMC / ICT</div>
             <div id="smc-box"><div class="ins">Loading...</div></div>
+            <div class="stitle" style="margin-top:10px">📰 Tin tức</div>
+            <div id="news-panel" style="max-height:200px;overflow-y:auto"><div class="ins">Loading...</div></div>
         </div>
     </div>
 
     <script>
     const socket=io(); let miniChart=null;
-    document.addEventListener('DOMContentLoaded',()=>{refreshSignal();lc('h4','bb',document.querySelector('.ctab'));});
+    document.addEventListener('DOMContentLoaded',()=>{
+        // Load chart first (fast, only Binance klines API)
+        lc('h4','bb',document.querySelector('.ctab'));
+        // Load signal separately (slower, calls multiple APIs)
+        refreshSignal();
+    });
     socket.on('signal_update',d=>upAll(d));
 
-    async function refreshSignal(){try{const r=await fetch('/api/signal');upAll(await r.json());}catch(e){}}
+    async function refreshSignal(){
+        try{
+            const r=await fetch('/api/signal',{signal:AbortSignal.timeout(15000)});
+            const data=await r.json();
+            upAll(data);
+            // If still loading, retry after 5s
+            if(data.signal==='LOADING...') setTimeout(refreshSignal, 5000);
+        } catch(e){
+            setTimeout(refreshSignal, 5000);
+        }
+    }
 
     function upAll(d){
         if(d.error)return;
@@ -155,12 +172,22 @@
         const ce=document.getElementById('t-chg');ce.textContent=`${ch>=0?'+':''}${Number(ch).toFixed(2)}%`;ce.className=`chg-24h ${ch>=0?'up':'dn'}`;
         const se=document.getElementById('t-sig');se.textContent=(d.signal||'').replace(/[🟢🔴🟡]/g,'').trim();
         se.className='sig-badge '+(d.signal?.includes('BUY')?'sig-buy':d.signal?.includes('SELL')?'sig-sell':'sig-hold');
-        const sc=d.final_score||0;document.getElementById('t-sc').textContent=`${sc>0?'+':''}${sc.toFixed(3)}`;
+        const sc=d.final_score||0;document.getElementById('t-sc').textContent=`${sc>0?'+':''}${sc.toFixed(3)} | H4/M15 forecast 4-12h`;
         const co=d.confidence||'';const coE=document.getElementById('t-conf');coE.textContent=co;
         coE.className='conf-tag '+(co.includes('HIGH')?'cf-h':co.includes('MED')?'cf-m':'cf-l');
         document.getElementById('t-time').textContent=new Date(d.timestamp).toLocaleTimeString();
         upTA(d.components?.technical_analysis);upTrade(d.risk_reward);upMkt(d.market_context);
         upNews(d.components?.news_sentiment);upExpert(d.expert_analysis);upSMC(d.smc_ict);
+        upReasons(d.trade_reasons);
+    }
+
+    function upReasons(reasons){
+        if(!reasons||!reasons.length)return;
+        const c=document.getElementById('reasons-box');
+        if(!c)return;
+        let h='';
+        reasons.forEach((r,i)=>{h+=`<div class="ins" style="color:#f7931a;font-weight:500"><b>${i+1}.</b> ${r}</div>`;});
+        c.innerHTML=h;
     }
 
     function upTA(ta){if(!ta)return;const det=ta.details||{};let h='';
@@ -189,22 +216,17 @@
 
     function upNews(news){if(!news)return;
         const arts=news.top_articles||[];
-        document.getElementById('news-meta').textContent=`${news.articles_analyzed||0} bài | Sentiment: ${(news.score||0)>0?'+':''}${(news.score||0).toFixed(3)}`;
-        if(!arts.length){document.getElementById('news-feed').innerHTML='<p style="color:#8892a4;text-align:center;padding:30px">Không có tin mới</p>';return;}
+        const container=document.getElementById('news-panel');
+        if(!container)return;
+        if(!arts.length){container.innerHTML='<div class="ins" style="color:#8892a4">Không có tin mới</div>';return;}
         let h='';
-        arts.slice(0,10).forEach((a,i)=>{
+        arts.slice(0,5).forEach((a,i)=>{
             const s=a.sentiment||0;
-            const cls=s>0.1?'ns-up':s<-0.1?'ns-dn':'ns-z';
-            const lbl=s>0.1?'📈 Tích cực':s<-0.1?'📉 Tiêu cực':'➖ Trung tính';
-            const desc=(a.description||'').replace(/<[^>]*>/g,'');
-            const shortDesc=desc.length>200?desc.substring(0,197)+'...':desc||'Không có mô tả.';
-            h+=`<div class="news-card">
-                <div class="nw-head"><div class="nw-title">${a.title||''}</div><span class="nw-sent ${cls}">${lbl}</span></div>
-                <div class="nw-body">${shortDesc}</div>
-                <div class="nw-foot"><span>${a.source||''}</span><span>Impact #${i+1} | ${s>0?'+':''}${s.toFixed(2)}</span></div>
-            </div>`;
+            const cls=s>0.1?'color:#10b981':s<-0.1?'color:#ef4444':'color:#8892a4';
+            const title=(a.title||'').length>60?a.title.substring(0,57)+'...':a.title;
+            h+=`<div class="ins"><span style="${cls};font-weight:600">${s>0?'↑':'↓'}</span> ${title} <span style="font-size:0.6rem;color:#6b7280">(${a.source||''})</span></div>`;
         });
-        document.getElementById('news-feed').innerHTML=h;}
+        container.innerHTML=h;}
 
     function upExpert(ex){if(!ex)return;let h='';
         (ex.narratives||[]).slice(0,5).forEach(n=>{h+=`<div class="ins">${n}</div>`;});
@@ -217,27 +239,100 @@
         h+=`<div class="ins" style="color:#f7931a;font-weight:600">SMC: ${e.action} @ $${Number(e.entry_zone).toLocaleString()}</div>`;}
         document.getElementById('smc-box').innerHTML=h||'<div class="ins">No data</div>';}
 
-    // Mini Chart
-    async function lc(tf,type,el){document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));if(el)el.classList.add('active');
-        try{const r=await fetch(`/api/chart/${tf}`);const j=await r.json();if(j.error||!j.data)return;type==='bb'?rBB(j.data):rMACD(j.data);}catch(e){}}
+    // === CHARTS: H4 + H1 — TradingView Lightweight Charts (Candlestick + BB + SMC) ===
+    let chartH4 = null;
+    let chartH1 = null;
 
-    function rBB(data){const L=data.map(d=>new Date(d.time).toLocaleString([],{day:'numeric',hour:'2-digit',minute:'2-digit'}));
-        if(miniChart)miniChart.destroy();
-        miniChart=new Chart(document.getElementById('miniChart').getContext('2d'),{type:'line',data:{labels:L,datasets:[
-            {data:data.map(d=>d.close),borderColor:'#f7931a',borderWidth:1.5,pointRadius:0,tension:.1},
-            {data:data.map(d=>d.bb_upper||null),borderColor:'rgba(239,68,68,.5)',borderWidth:1,borderDash:[3,2],pointRadius:0,tension:.1,fill:false},
-            {data:data.map(d=>d.bb_lower||null),borderColor:'rgba(16,185,129,.5)',borderWidth:1,borderDash:[3,2],pointRadius:0,tension:.1,fill:'-1',backgroundColor:'rgba(136,146,164,.03)'},
-        ]},options:co()});}
+    async function loadCharts() {
+        loadOneChart('h4', 'chartH4');   // H4 = trend (top chart)
+        setTimeout(()=>loadOneChart('m15', 'chartH1'), 1500);  // M15 = entry (bottom chart)
+    }
 
-    function rMACD(data){const L=data.map(d=>new Date(d.time).toLocaleString([],{day:'numeric',hour:'2-digit',minute:'2-digit'}));
-        const hist=data.map(d=>d.macd_histogram||null);if(miniChart)miniChart.destroy();
-        miniChart=new Chart(document.getElementById('miniChart').getContext('2d'),{type:'bar',data:{labels:L,datasets:[
-            {data:hist,type:'bar',backgroundColor:hist.map(v=>v>0?'rgba(16,185,129,.5)':'rgba(239,68,68,.5)'),borderWidth:0,order:2},
-            {data:data.map(d=>d.macd||null),type:'line',borderColor:'#60a5fa',borderWidth:1.5,pointRadius:0,tension:.2,order:1},
-            {data:data.map(d=>d.macd_signal||null),type:'line',borderColor:'#f59e0b',borderWidth:1.5,pointRadius:0,tension:.2,order:1},
-        ]},options:co()});}
+    async function loadOneChart(tf, containerId) {
+        try {
+            const r = await fetch(`/api/chart/${tf}`, {signal: AbortSignal.timeout(12000)});
+            const json = await r.json();
+            if(json.error || !json.data) return;
+            renderTVChart(tf, containerId, json.data, json.smc_zones);
+        } catch(e) { console.error(`Chart ${tf} error:`, e); }
+    }
 
-    function co(){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{grid:{color:'#1a1f2e'},ticks:{color:'#8892a4',font:{size:8},maxTicksLimit:4}}}}}
+    function renderTVChart(tf, containerId, data, zones) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        container.innerHTML = '';
+
+        const chart = LightweightCharts.createChart(container, {
+            width: container.clientWidth,
+            height: container.clientHeight,
+            layout: { background: {color:'#0d1117'}, textColor:'#8892a4' },
+            grid: { vertLines:{color:'#1a1f2e'}, horzLines:{color:'#1a1f2e'} },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            rightPriceScale: { borderColor:'#2d3748' },
+            timeScale: { borderColor:'#2d3748', timeVisible:true },
+        });
+
+        // Candlestick series
+        const candleSeries = chart.addCandlestickSeries({
+            upColor:'#10b981', downColor:'#ef4444',
+            borderUpColor:'#10b981', borderDownColor:'#ef4444',
+            wickUpColor:'#10b981', wickDownColor:'#ef4444',
+        });
+
+        const candles = data.map(d => ({
+            time: Math.floor(new Date(d.time).getTime()/1000),
+            open: d.open, high: d.high, low: d.low, close: d.close,
+        }));
+        candleSeries.setData(candles);
+
+        // BB Upper (red line)
+        const bbUpper = chart.addLineSeries({color:'rgba(239,68,68,0.5)', lineWidth:1, lineStyle:2});
+        bbUpper.setData(data.filter(d=>d.bb_upper).map(d=>({time:Math.floor(new Date(d.time).getTime()/1000), value:d.bb_upper})));
+
+        // BB Middle (gray)
+        const bbMid = chart.addLineSeries({color:'rgba(136,146,164,0.4)', lineWidth:1});
+        bbMid.setData(data.filter(d=>d.bb_middle).map(d=>({time:Math.floor(new Date(d.time).getTime()/1000), value:d.bb_middle})));
+
+        // BB Lower (green line)
+        const bbLower = chart.addLineSeries({color:'rgba(16,185,129,0.5)', lineWidth:1, lineStyle:2});
+        bbLower.setData(data.filter(d=>d.bb_lower).map(d=>({time:Math.floor(new Date(d.time).getTime()/1000), value:d.bb_lower})));
+
+        // SMC Zones as price lines
+        if(zones) {
+            // Support lines (green)
+            (zones.support||[]).forEach(s => {
+                candleSeries.createPriceLine({price:s, color:'rgba(16,185,129,0.6)', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'S'});
+            });
+            // Resistance lines (red)
+            (zones.resistance||[]).forEach(r => {
+                candleSeries.createPriceLine({price:r, color:'rgba(239,68,68,0.6)', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'R'});
+            });
+            // Equilibrium (yellow)
+            if(zones.equilibrium) {
+                candleSeries.createPriceLine({price:zones.equilibrium, color:'rgba(245,158,11,0.5)', lineWidth:1, lineStyle:1, title:'EQ'});
+            }
+            // Order Blocks as markers
+            const markers = [];
+            const lastTime = candles[candles.length-1]?.time;
+            (zones.bullish_obs||[]).forEach(ob => {
+                candleSeries.createPriceLine({price:ob.low, color:'rgba(16,185,129,0.4)', lineWidth:2, lineStyle:0, title:'OB↑ '+ob.strength});
+            });
+            (zones.bearish_obs||[]).forEach(ob => {
+                candleSeries.createPriceLine({price:ob.high, color:'rgba(239,68,68,0.4)', lineWidth:2, lineStyle:0, title:'OB↓ '+ob.strength});
+            });
+        }
+
+        chart.timeScale().fitContent();
+
+        // Responsive
+        new ResizeObserver(()=>{chart.applyOptions({width:container.clientWidth,height:container.clientHeight})}).observe(container);
+
+        if(tf==='h4') chartH4=chart; else chartH1=chart;
+    }
+
+    // Load charts on page load + refresh every 10 min
+    setTimeout(loadCharts, 1000);
+    setInterval(loadCharts, 600000);
 
     setInterval(refreshSignal,300000);
     </script>

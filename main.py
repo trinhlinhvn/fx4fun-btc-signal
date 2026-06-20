@@ -259,11 +259,12 @@ def main():
 
     # Loop mode with optional Telegram
     if "--loop" in sys.argv or "--all" in sys.argv:
-        interval = 300  # 5 minutes
+        from config import SCAN_INTERVAL_SECONDS
+        interval = SCAN_INTERVAL_SECONDS
         use_telegram = "--telegram" in sys.argv or "--all" in sys.argv
         console.print(f"[cyan]Running in loop mode (every {interval // 60} min). Press Ctrl+C to stop.[/cyan]")
         if use_telegram:
-            console.print("[cyan]Telegram alerts: ON[/cyan]")
+            console.print("[cyan]Telegram alerts: ON (only STRONG signals)[/cyan]")
         console.print()
 
         try:
@@ -272,8 +273,22 @@ def main():
                     result = engine.generate_signal()
                 display_signal(result)
 
+                # Only send Telegram for STRONG signals
                 if use_telegram:
-                    run_with_telegram(engine, result)
+                    fund_mgmt = result.get("fund_management", {})
+                    is_strong = fund_mgmt.get("is_strong_signal", False)
+                    strong_reason = fund_mgmt.get("strong_signal_reason", "")
+
+                    if is_strong:
+                        # Check cooldown
+                        should_send, cooldown_msg = engine.fund.should_send_alert(result, cooldown_minutes=60)
+                        if should_send:
+                            console.print(f"[green]✅ STRONG SIGNAL — sending Telegram[/green]")
+                            run_with_telegram(engine, result)
+                        else:
+                            console.print(f"[yellow]⏸️ {cooldown_msg}[/yellow]")
+                    else:
+                        console.print(f"[dim]⏸️ Skip Telegram: {strong_reason}[/dim]")
 
                 console.print(f"[dim]Next update in {interval // 60} minutes...[/dim]\n")
                 time.sleep(interval)

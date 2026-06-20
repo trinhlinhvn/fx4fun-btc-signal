@@ -1,121 +1,161 @@
-# 🪙 BTC Trading Signal Bot — Expert Edition v3.0 (Fx4Fun)
+# 🪙 Fx4Fun v4.1 STABLE — BTC/USDT Signal Bot
 
-Phần mềm phân tích và đưa ra tín hiệu trading BTC/USDT Futures **cấp độ chuyên gia**, kết hợp 5 nguồn phân tích:
+## Backtest-optimized | PF 2.03 | RR 2:1 | H4 trend + M15 entry
 
-1. **📈 Technical Analysis** — RSI, MACD, EMA 21/50, Bollinger Bands, Volume Analysis
-2. **📰 News Sentiment** — RSS feeds từ CoinDesk, CoinTelegraph + NLP sentiment (free, không cần key)
-3. **🤖 ML/AI Prediction** — Ensemble XGBoost + LSTM dự báo trend
-4. **🧠 Expert Analysis** — Market Structure, S/R, Divergence, Wyckoff Phase, Multi-timeframe H1/H4
-5. **💎 SMC/ICT** — Order Blocks, Fair Value Gaps, Liquidity Zones, BOS/CHoCH, Premium/Discount, Liquidity Sweep
+---
 
-## ✨ Features
+## Tham số (backtest-optimized)
 
-- 🌐 **Web Dashboard** — Dark theme, realtime charts (Bollinger Bands + MACD, H1/H4)
-- 📱 **Telegram Bot** — Gửi tín hiệu tự động + interactive commands
-- ⚡ **Futures x10** — Entry/SL/TP cụ thể, Liquidation price, ROE%, PnL
-- 📐 **Multi-timeframe** — H1 + H4 real data từ Binance Futures
-- 🔄 **Anti-whipsaw** — Tránh flip signal liên tục khi sideway
-- 📊 **Dynamic Weights** — Tự redistribute khi 1 source không có data
-- 💰 **Funding Rate** — Theo dõi market positioning (Long/Short bias)
-- 🛡️ **Max SL Cap** — Giới hạn loss tối đa 30% margin cho Futures x10
+```
+SL:  1.5%   (~$950)
+TP1: 3.0%   (~$1,900)  R:R 2:1
+TP2: 4.5%   (~$2,800)  R:R 3:1
+TP3: 7.5%   (~$4,700)  R:R 5:1
 
-## 🏗️ Data Sources
-
-| Source | Type | Key Required | 
-|--------|------|:---:|
-| Binance Futures API | Price, OHLCV, Funding Rate | ❌ Free |
-| CoinDesk RSS | News | ❌ Free |
-| CoinTelegraph RSS | News | ❌ Free |
-| NewsAPI.org | News (optional) | ✅ Optional |
-
-## 🚀 Cài đặt
-
-```bash
-pip install -r requirements.txt
-python -m textblob.download_corpora
-
-# Config (optional - app chạy được không cần key nào)
-copy .env.example .env
+Quét: mỗi 5 phút
+Timeframe: H4 (trend) + M15 (entry)
+Alert: Telegram khi score >= 0.2
 ```
 
-## 📖 Sử dụng
+---
 
-```bash
-# Chạy 1 lần
-python main.py
+## Kiến trúc
 
-# Train ML + chạy
-python main.py --train
-
-# Web Dashboard (http://localhost:5000)
-python main.py --web
-
-# Telegram alerts
-python main.py --telegram
-
-# Production (Web + Telegram + Loop 5 phút)
-python main.py --train --all
+```
+ Binance Futures API (free)
+       │
+       ├── H4 klines (200 candles, trend)
+       ├── M15 klines (100 candles, entry)
+       ├── Funding Rate + Open Interest
+       └── Taker Buy Volume (order flow)
+       │
+       ▼
+ ┌─────────────────────────────────────┐
+ │      9 ANALYSIS ENGINES             │
+ │                                     │
+ │  TA (2.5x) + SMC (2.0x)            │
+ │  Volume Profile (2.2x)             │
+ │  Order Flow (2.2x)                 │
+ │  Money Flow (1.8x)                 │
+ │  ML/AI (1.5x) + On-chain (1.5x)   │
+ │  KOL (1.2x) + F&G (1.0x)          │
+ │  News (0.8x)                       │
+ └──────────────────┬──────────────────┘
+                    │
+ ┌──────────────────┴──────────────────┐
+ │      CONFLUENCE VOTING              │
+ │                                     │
+ │  Mỗi source VOTE: BUY/SELL/NEUTRAL │
+ │  75%+ agree → Amplify 2x           │
+ │  Split → Dampen 0.8x               │
+ └──────────────────┬──────────────────┘
+                    │
+ ┌──────────────────┴──────────────────┐
+ │      OUTPUT                         │
+ │                                     │
+ │  Signal: LONG / SHORT / HOLD        │
+ │  Entry Zone (±0.15%)                │
+ │  SL: 1.5%                           │
+ │  TP1: 3.0% | TP2: 4.5% | TP3: 7.5% │
+ │  3 lý do ngắn gọn                  │
+ └──────────────────┬──────────────────┘
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+   Web (5173)   Terminal    Telegram
 ```
 
-## 🏗️ Architecture
+---
+
+## 9 Engines
+
+| # | Engine | Vai trò |
+|---|--------|---------|
+| 1 | Technical Analysis | RSI, MACD, EMA 21/50, BB, Volume Ratio |
+| 2 | SMC / ICT | Order Blocks, FVG, BOS/CHoCH, Liquidity |
+| 3 | Volume Profile | POC, Value Area, HVN/LVN |
+| 4 | Order Flow | Delta, Cum. Delta, Absorption, Imbalance |
+| 5 | Money Flow | MFI, CMF, Smart Money Detection |
+| 6 | Fear & Greed | Contrarian (Fear=BUY, Greed=SELL) |
+| 7 | ML/AI | XGBoost + LSTM ensemble |
+| 8 | On-chain | Whale Alert, Funding, L/S ratio, OI |
+| 9 | News + KOL | RSS feeds + Trump/Musk/CZ tweets |
+
+---
+
+## Chạy
+
+| File | Mô tả |
+|------|--------|
+| `start.bat` | Web Dashboard http://localhost:5173 |
+| `start_all.bat` | Web + Telegram + Loop 5 min |
+| `start_telegram.bat` | Telegram alerts only (nhẹ) |
+| `start_backtest.bat` | Kiểm tra hiệu suất strategy |
+
+---
+
+## Telegram Alert
+
+```
+🟢🟢 STRONG LONG 🚀
+━━━━━━━━━━━━━━━━━━━
+BTC/USDT | $63,055 (-1.8%)
+
+Entry Zone: $62,961 - $63,150
+SL: $62,109 (1.5%)
+TP1: $64,947 (3.0%)
+TP2: $65,892 (4.5%)
+TP3: $67,784 (7.5%)
+R:R 2.0:1 | Score +0.45
+
+Ly do:
+1. Volume Profile below VA + Order Flow delta positive
+2. SMC: Bullish OB + Discount zone (35% range)
+3. TA: RSI oversold + MACD bullish cross
+
+06:30 19/06 | H4/M15 | Refresh 5 min
+DYOR.
+```
+
+---
+
+## Backtest (60 days)
+
+```
+Trades:        9
+Win Rate:      55.6%
+Profit Factor: 2.03
+PnL:           +6.2% (annualized ~37%)
+Max Drawdown:  -3.0%
+```
+
+---
+
+## Files
 
 ```
 Fx4Fun/
-├── main.py                 # Entry point + Rich terminal UI
-├── config.py               # Tất cả cấu hình (weights, thresholds)
-├── data_fetcher.py         # Binance Futures API (OHLCV + Funding Rate)
-├── technical_analysis.py   # RSI, MACD, EMA, BB + Volume Analysis
-├── news_sentiment.py       # Multi-source news (RSS + NewsAPI) + NLP
-├── ml_predictor.py         # XGBoost + LSTM ensemble
-├── expert_analysis.py      # Market Structure, S/R, Divergence, Wyckoff
-├── smc_ict_analysis.py     # SMC: OB, FVG, Liquidity, BOS/CHoCH, OTE
-├── signal_engine.py        # Combines all → final signal
-├── telegram_bot.py         # Telegram integration
-├── web_dashboard.py        # Flask + SocketIO web UI
-├── templates/
-│   ├── dashboard.html      # Main dashboard (signal + charts)
-│   └── charts.html         # Dedicated charts page
-└── models/                 # Saved ML models (auto)
+├── config.py               # Tham số SL/TP/interval
+├── signal_engine.py        # Core: 9 engines + Confluence Voting
+├── data_fetcher.py         # Binance Futures API
+├── technical_analysis.py   # RSI, MACD, EMA, BB
+├── smc_ict_analysis.py     # OB, FVG, BOS, Liquidity
+├── volume_profile.py       # VP + Order Flow (NEW)
+├── money_flow.py           # MFI, CMF, Smart Money
+├── fear_greed.py           # F&G + Liquidation Heatmap
+├── onchain_monitor.py      # Whale, Funding, L/S
+├── kol_monitor.py          # KOL tweets
+├── expert_analysis.py      # S/R, Divergence, MTF
+├── pro_trading.py          # Grade, Kill Zone, Candle
+├── fund_manager.py         # Signal filter
+├── backtester.py           # Backtest engine
+├── telegram_bot.py         # Alert
+├── web_dashboard.py        # Flask + Charts
+├── main.py                 # CLI entry
+├── templates/dashboard.html # TradingView Candlestick UI
+└── start*.bat              # Shortcuts
 ```
 
-## 📊 Signal Logic
+---
 
-| Score | Signal | Futures Action |
-|-------|--------|---------------|
-| ≥ 0.6 | STRONG BUY 🟢🟢 | Long x10, full size |
-| 0.3 → 0.6 | BUY 🟢 | Long x10, half size |
-| -0.3 → 0.3 | HOLD 🟡 | No new position |
-| -0.6 → -0.3 | SELL 🔴 | Short x10, half size |
-| ≤ -0.6 | STRONG SELL 🔴🔴 | Short x10, full size |
-
-## 🧠 SMC/ICT Methodology
-
-- **Order Blocks**: Demand/Supply zones (2-candle displacement confirmation)
-- **Fair Value Gaps**: Unfilled imbalances (price tends to fill)
-- **Liquidity Zones**: Equal Highs/Lows where stops cluster
-- **BOS/CHoCH**: Structure continuation vs reversal
-- **Premium/Discount**: Fibonacci OTE (61.8-78.6%)
-- **Liquidity Sweep**: Stop hunt detection with volume confirmation
-
-## ⚡ Futures x10 Risk Management
-
-- Max SL: 3% price move (= 30% ROE loss cap)
-- Liquidation formula: Binance-accurate (IMR + MMR)
-- Position size suggestion based on risk %
-- Multi-target TP: Conservative, 3:1 RR, 5:1 RR
-
-## 🔧 Technical Improvements (v3.0)
-
-- Dynamic weight allocation (no dead weight from unavailable sources)
-- Anti-whipsaw logic (requires stronger score to flip direction)
-- Volume analysis integrated (vol_ratio for breakout confirmation)
-- EMA 21/50 (suitable for H4 swing trading, not day-trading noise)
-- Funding rate monitoring (detect overcrowded positions)
-- Confidence score: X/N sources agree (not just HIGH/MED/LOW)
-- Binance Futures API: 1200 req/min, no rate limit issues
-- Smart caching: 30s price, 2min klines, 5min market data
-
-## ⚠️ Disclaimer
-
-Tool hỗ trợ phân tích, **KHÔNG phải lời khuyên tài chính**.
-Past performance ≠ Future results. Always DYOR.
+⚠️ DYOR. Tool hỗ trợ, không phải lời khuyên tài chính.

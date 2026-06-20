@@ -61,29 +61,7 @@ class NewsSentimentAnalyzer:
             return []
 
     def fetch_news_cryptopanic(self) -> list:
-        """Fetch news from free-crypto-news API (no key needed)."""
-        try:
-            url = self.FREE_SOURCES["free_crypto_news"]
-            params = {"category": "bitcoin", "limit": 20}
-            response = requests.get(url, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                articles = data if isinstance(data, list) else data.get("articles", data.get("news", []))
-                return [
-                    {
-                        "title": a.get("title", ""),
-                        "description": a.get("description", a.get("summary", "")),
-                        "source": a.get("source", {}).get("name", a.get("source", "Unknown")),
-                        "published_at": a.get("publishedAt", a.get("published_at", a.get("date", ""))),
-                        "url": a.get("url", ""),
-                    }
-                    for a in articles[:self.config["max_articles"]]
-                    if a.get("title")
-                ]
-        except Exception as e:
-            print(f"[WARNING] free-crypto-news fetch failed: {e}")
-
-        # Fallback: RSS feeds from major crypto news sites
+        """Fetch news from RSS feeds of major crypto outlets (always free, fast)."""
         return self._fetch_rss_news()
 
     def _fetch_rss_news(self) -> list:

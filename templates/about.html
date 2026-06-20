@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiến trúc hệ thống | Fx4Fun</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0e17;color:#e1e5eb;line-height:1.7;font-size:15px}
+        .container{max-width:900px;margin:0 auto;padding:30px 24px}
+        a{color:#60a5fa;text-decoration:none}
+        a:hover{text-decoration:underline}
+        .back{display:inline-block;margin-bottom:20px;font-size:0.9rem}
+        h1{font-size:2rem;margin-bottom:8px;background:linear-gradient(90deg,#f7931a,#ffcd00);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .subtitle{color:#8892a4;font-size:0.95rem;margin-bottom:30px}
+        h2{font-size:1.3rem;color:#f7931a;margin:30px 0 12px;padding-bottom:6px;border-bottom:1px solid #2d3748}
+        h3{font-size:1.05rem;color:#e1e5eb;margin:18px 0 8px}
+        p{margin-bottom:12px;color:#c9d1d9}
+        ul{margin:8px 0 16px 24px}
+        li{margin-bottom:6px;color:#c9d1d9}
+        .card{background:#1a1f2e;border:1px solid #2d3748;border-radius:10px;padding:18px;margin:14px 0}
+        .card-title{font-weight:700;color:#e1e5eb;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+        .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:700}
+        .b-green{background:rgba(16,185,129,0.15);color:#10b981}
+        .b-blue{background:rgba(96,165,250,0.15);color:#60a5fa}
+        .b-orange{background:rgba(247,147,26,0.15);color:#f7931a}
+        .b-red{background:rgba(239,68,68,0.15);color:#ef4444}
+        .diagram{background:#0d1117;border:1px solid #2d3748;border-radius:8px;padding:20px;margin:16px 0;font-family:'Courier New',monospace;font-size:0.82rem;line-height:1.6;color:#8892a4;overflow-x:auto;white-space:pre}
+        .highlight{color:#f7931a}
+        .flow-arrow{color:#10b981;font-weight:700}
+        table{width:100%;border-collapse:collapse;margin:12px 0}
+        th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #2d3748;font-size:0.88rem}
+        th{color:#8892a4;font-weight:600;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.5px}
+        td{color:#c9d1d9}
+        .version{text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #2d3748;color:#6b7280;font-size:0.8rem}
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/" class="back">← Quay lại Dashboard</a>
+    <h1>🪙 Fx4Fun — Kiến trúc hệ thống</h1>
+    <p class="subtitle">BTC/USDT Futures Signal Bot v3.0 | Technical Analysis + News Sentiment + ML/AI + SMC/ICT</p>
+
+    <h2>📐 Tổng quan kiến trúc</h2>
+    <div class="diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                        <span class="highlight">SIGNAL ENGINE</span>                           │
+│                                                                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐   │
+│  │ Technical│  │   News   │  │  ML/AI   │  │  SMC / ICT   │   │
+│  │ Analysis │  │Sentiment │  │Prediction│  │  Analysis    │   │
+│  │  (45%)   │  │  (15%)   │  │  (25%)   │  │   (35%)      │   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └──────┬───────┘   │
+│       │              │              │               │           │
+│       └──────────────┴──────────────┴───────────────┘           │
+│                              │                                  │
+│                    <span class="flow-arrow">▼ Weighted Score ▼</span>                          │
+│                              │                                  │
+│               ┌──────────────┴──────────────┐                   │
+│               │  Expert Bias Adjustment     │                   │
+│               │  (Divergence + BOS boost)   │                   │
+│               └──────────────┬──────────────┘                   │
+│                              │                                  │
+│                    <span class="flow-arrow">▼ Final Score ▼</span>                            │
+│                              │                                  │
+│       ┌──────────────────────┴────────────────────────┐         │
+│       │  STRONG BUY │ BUY │ HOLD │ SELL │ STRONG SELL │         │
+│       │   ≥0.6      │≥0.3 │      │≤-0.3 │  ≤-0.6     │         │
+│       └───────────────────────────────────────────────┘         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+       ┌────────────┐ ┌────────────┐ ┌──────────────┐
+       │  Terminal   │ │    Web     │ │   Telegram   │
+       │   (Rich)   │ │ Dashboard  │ │     Bot      │
+       └────────────┘ └────────────┘ └──────────────┘</div>
+
+    <h2>🧩 Các thành phần chính</h2>
+
+    <div class="card">
+        <div class="card-title">📈 Technical Analysis <span class="badge b-green">CORE</span></div>
+        <p>Phân tích kỹ thuật cổ điển dựa trên 4 indicators:</p>
+        <ul>
+            <li><strong>RSI (14)</strong> — Relative Strength Index. Overbought >70, Oversold <30</li>
+            <li><strong>MACD (12/26/9)</strong> — Moving Average Convergence Divergence. Crossover + histogram</li>
+            <li><strong>EMA (21/50)</strong> — Exponential Moving Average crossover cho swing trading</li>
+            <li><strong>Bollinger Bands (20, 2σ)</strong> — Volatility bands, mean reversion</li>
+            <li><strong>Volume Analysis</strong> — Volume ratio vs SMA20, xác nhận breakout</li>
+        </ul>
+        <p>Score range: -1.0 → +1.0. Weighted: RSI 30%, MACD 25%, EMA 25%, BB 20%.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📰 News Sentiment <span class="badge b-blue">NLP</span></div>
+        <p>Phân tích tâm lý thị trường từ tin tức crypto realtime:</p>
+        <ul>
+            <li><strong>Sources:</strong> CoinDesk RSS, CoinTelegraph RSS (free, không cần API key)</li>
+            <li><strong>NLP Engine:</strong> TextBlob polarity + domain-specific keyword boost</li>
+            <li><strong>3-tier keywords:</strong> High impact (ETF, halving) → Medium (rally, crash) → Low (upgrade, delay)</li>
+            <li><strong>Sorting:</strong> Top 10 articles sorted by absolute impact</li>
+        </ul>
+        <p>Nếu không có NewsAPI key, tự động dùng RSS feeds. Score: -1.0 → +1.0.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🤖 ML/AI Prediction <span class="badge b-orange">ENSEMBLE</span></div>
+        <p>Ensemble machine learning dự đoán trend BTC:</p>
+        <ul>
+            <li><strong>XGBoost (55%)</strong> — Gradient boosting cho tabular data. 25+ features, 3-class (UP/FLAT/DOWN)</li>
+            <li><strong>LSTM (45%)</strong> — Long Short-Term Memory neural network, sequence length 20</li>
+            <li><strong>Features:</strong> Returns, volatility, momentum, MA ratios, RSI, MACD, EMA, BB position, lag features</li>
+            <li><strong>Training:</strong> 365 ngày data, TimeSeriesSplit cross-validation, predict 5 candles ahead</li>
+        </ul>
+        <p>Model được lưu tự động và load lại khi restart. Train lại mỗi 12h.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">💎 SMC / ICT Analysis <span class="badge b-red">ADVANCED</span></div>
+        <p>Smart Money Concepts + Inner Circle Trader methodology:</p>
+        <ul>
+            <li><strong>Order Blocks (OB)</strong> — Demand/Supply zones nơi institutional orders đặt. 2-candle displacement confirmation</li>
+            <li><strong>Fair Value Gaps (FVG)</strong> — Imbalances chưa được fill, giá có xu hướng quay lại</li>
+            <li><strong>Liquidity Zones</strong> — Equal Highs/Lows nơi stop loss tập trung</li>
+            <li><strong>BOS & CHoCH</strong> — Break of Structure (continuation) vs Change of Character (reversal)</li>
+            <li><strong>Premium/Discount</strong> — Fibonacci OTE (61.8-78.6%) entry zone</li>
+            <li><strong>Liquidity Sweep</strong> — Stop hunt detection với volume confirmation</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🧠 Expert Analysis <span class="badge b-green">WYCKOFF</span></div>
+        <p>Phân tích chuyên sâu như trader chuyên nghiệp:</p>
+        <ul>
+            <li><strong>Market Structure</strong> — HH/HL/LH/LL counting → Uptrend/Downtrend/Ranging</li>
+            <li><strong>Wyckoff Phase</strong> — Accumulation → Markup → Distribution → Markdown</li>
+            <li><strong>Divergence</strong> — RSI vs Price (Bullish/Bearish divergence)</li>
+            <li><strong>Multi-timeframe</strong> — H4 + M15 confluence check</li>
+            <li><strong>Support/Resistance</strong> — Swing-based S/R với cluster analysis</li>
+        </ul>
+    </div>
+
+    <h2>⚡ Futures x10 Risk Management</h2>
+    <div class="card">
+        <div class="card-title">💰 Trade Setup Engine</div>
+        <table>
+            <tr><th>Parameter</th><th>Logic</th></tr>
+            <tr><td>Entry</td><td>Current price hoặc OB/FVG zone</td></tr>
+            <tr><td>Stop Loss</td><td>ATR-based (2x ATR) hoặc nearest S/R. Max 3% (= 30% ROE)</td></tr>
+            <tr><td>TP1</td><td>Nearest resistance/liquidity</td></tr>
+            <tr><td>TP2</td><td>3:1 Risk-Reward ratio</td></tr>
+            <tr><td>TP3</td><td>5:1 Risk-Reward ratio</td></tr>
+            <tr><td>Liquidation</td><td>Binance formula: Entry × (1 - 1/lev + MMR)</td></tr>
+            <tr><td>Position Size</td><td>Based on risk % (conservative → aggressive)</td></tr>
+        </table>
+        <p><strong>Anti-whipsaw:</strong> Signal cần score mạnh hơn bình thường để flip direction (tránh vào/ra liên tục).</p>
+    </div>
+
+    <h2>🔄 Data Flow</h2>
+    <div class="diagram">
+<span class="highlight">Binance Futures API</span> (FREE, no key)
+    │
+    ├── /fapi/v1/ticker/24hr  → Current price, 24h change
+    ├── /fapi/v1/klines?interval=4h  → H4 OHLCV (200 candles, trend)
+    ├── /fapi/v1/klines?interval=15m → M15 OHLCV (100 candles, entry)
+    ├── /fapi/v1/fundingRate  → Funding rate (market positioning)
+    └── /fapi/v1/openInterest  → Open interest
+
+<span class="highlight">News Sources</span> (FREE, no key)
+    ├── CoinDesk RSS Feed
+    └── CoinTelegraph RSS Feed
+
+<span class="flow-arrow">Smart Caching:</span>
+    • Price: 30s TTL
+    • Klines: 2min TTL  
+    • Market data: 5min TTL
+    • Rate limit: 1200 req/min (never hit)</div>
+
+    <h2>🏗️ File Structure</h2>
+    <div class="diagram">
+Fx4Fun/
+├── <span class="highlight">main.py</span>              → Terminal entry point (Rich UI)
+├── <span class="highlight">web_dashboard.py</span>     → Flask web server + API endpoints
+├── <span class="highlight">app.py</span>               → Production entry (Gunicorn/Render)
+├── <span class="highlight">signal_engine.py</span>     → Core: combines all sources → final signal
+├── data_fetcher.py      → Binance Futures API client + caching
+├── technical_analysis.py → RSI, MACD, EMA, BB, Volume
+├── news_sentiment.py    → RSS feeds + TextBlob NLP
+├── ml_predictor.py      → XGBoost + LSTM ensemble
+├── expert_analysis.py   → Market structure, S/R, Wyckoff, MTF
+├── smc_ict_analysis.py  → Order Blocks, FVG, Liquidity, BOS/CHoCH
+├── telegram_bot.py      → Telegram alerts + commands
+├── config.py            → All configuration
+├── templates/
+│   ├── dashboard.html   → Main web UI
+│   └── about.html       → This page
+├── render.yaml          → Render.com deploy config
+├── Procfile             → Gunicorn start command
+└── requirements.txt     → Python dependencies</div>
+
+    <h2>📊 Dynamic Weight System</h2>
+    <p>Weights tự động adjust dựa trên data availability:</p>
+    <table>
+        <tr><th>Scenario</th><th>TA</th><th>News</th><th>ML</th><th>SMC</th></tr>
+        <tr><td>All available</td><td>25%</td><td>15%</td><td>25%</td><td>35%</td></tr>
+        <tr><td>No ML</td><td>35%</td><td>20%</td><td>0%</td><td>45%</td></tr>
+        <tr><td>No News</td><td>30%</td><td>0%</td><td>30%</td><td>40%</td></tr>
+        <tr><td>Only TA + SMC</td><td>40%</td><td>0%</td><td>0%</td><td>60%</td></tr>
+    </table>
+    <p>SMC/ICT luôn có weight cao nhất vì đây là methodology của institutional traders.</p>
+
+    <h2>🛡️ Safety Features</h2>
+    <ul>
+        <li><strong>Max SL Cap:</strong> 3% price move = 30% ROE loss maximum</li>
+        <li><strong>Anti-whipsaw:</strong> Score threshold tăng 0.1 khi flip direction</li>
+        <li><strong>Dynamic weights:</strong> Dead sources (no data) không dilute signal</li>
+        <li><strong>Confidence scoring:</strong> X/N sources agree (transparent)</li>
+        <li><strong>Volume confirmation:</strong> Sweeps/breakouts cần high volume</li>
+        <li><strong>Funding rate monitoring:</strong> Detect overcrowded trades</li>
+    </ul>
+
+    <h2>🚀 Deployment</h2>
+    <table>
+        <tr><th>Mode</th><th>Command</th><th>Description</th></tr>
+        <tr><td>Terminal</td><td><code>python main.py</code></td><td>1 lần, Rich UI</td></tr>
+        <tr><td>Loop</td><td><code>python main.py --loop</code></td><td>Mỗi 5 phút</td></tr>
+        <tr><td>Web</td><td><code>python main.py --web</code></td><td>localhost:5000</td></tr>
+        <tr><td>Telegram</td><td><code>python main.py --telegram</code></td><td>Gửi alert</td></tr>
+        <tr><td>Production</td><td><code>python main.py --train --all</code></td><td>Web + Tele + Loop</td></tr>
+        <tr><td>Cloud</td><td>Render.com</td><td>Auto-deploy từ GitHub</td></tr>
+    </table>
+
+    <div class="version">
+        <p>Fx4Fun BTC Signal Bot v3.0 | Built with Python, Flask, Chart.js</p>
+        <p>Data: Binance Futures API | News: CoinDesk + CoinTelegraph RSS</p>
+        <p>⚠️ Tool hỗ trợ phân tích — KHÔNG phải lời khuyên tài chính</p>
+    </div>
+</div>
+</body>
+</html>
