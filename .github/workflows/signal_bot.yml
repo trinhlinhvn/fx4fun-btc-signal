@@ -2,8 +2,8 @@ name: BTC Signal Bot
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Mỗi 5 phút
-  workflow_dispatch:        # Chạy tay từ GitHub UI
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 jobs:
   signal:
@@ -16,10 +16,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install requests pandas numpy ta textblob python-dotenv scikit-learn xgboost joblib python-telegram-bot
           python -m textblob.download_corpora lite
 
